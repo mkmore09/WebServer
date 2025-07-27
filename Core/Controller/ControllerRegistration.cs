@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using WebServer.Core.Attributes;
 
 namespace WebServer.Core.Controllers
@@ -12,8 +13,20 @@ namespace WebServer.Core.Controllers
         public ControllerDiscovery(RouteTable routeTable)
         {
             _routeTable = routeTable;
+            DiscoverControllers();
         }
+        public static Regex BuildRegex(string routeTemplate)
+        {
 
+            string pattern = Regex.Replace(routeTemplate, @"\{(\w+)\}", match =>
+            {
+                string paramName = match.Groups[1].Value;
+                return $"(?<{paramName}>[^/?]+)";
+            });
+            pattern = $"^{pattern}/?$";
+
+            return new Regex(pattern, RegexOptions.Compiled);
+        }
         public void DiscoverControllers()
         {
             var allTypes = AppDomain.CurrentDomain.GetAssemblies()
@@ -30,45 +43,53 @@ namespace WebServer.Core.Controllers
                     var postAttr = method.GetCustomAttribute<HttpPostAttribute>();
                     var deleteAttr = method.GetCustomAttribute<HttpDeleteAttribute>();
                     var putAttr = method.GetCustomAttribute<HttpPutAttribute>();
-
+                    
                     if (getAttr != null)
                     {
-                        _routeTable.Routes.Add(new ControllerDescriptor
+                        var regex=BuildRegex(getAttr.Path);
+                        _routeTable.Routes.Add(regex,new ControllerDescriptor
                         {
                             ControllerType = type,
                             ActionMethod = method,
                             HttpMethod = "GET",
-                            RoutePath = getAttr.Path
+                            RoutePath = getAttr.Path,
+                            RoutePathRegex = regex,
                         });
                     }
                     if (postAttr != null)
                     {
-                        _routeTable.Routes.Add(new ControllerDescriptor
+                        var regex = BuildRegex(postAttr.Path);
+                        _routeTable.Routes.Add(regex, new ControllerDescriptor
                         {
                             ControllerType = type,
                             ActionMethod = method,
                             HttpMethod = "POST",
-                            RoutePath = postAttr.Path
+                            RoutePath = postAttr.Path,
+                            RoutePathRegex = regex,
                         });
                     }
                     if (deleteAttr != null)
                     {
-                        _routeTable.Routes.Add(new ControllerDescriptor
+                        var regex = BuildRegex(deleteAttr.Path);
+                        _routeTable.Routes.Add(regex, new ControllerDescriptor
                         {
                             ControllerType = type,
                             ActionMethod = method,
-                            HttpMethod = "POST",
-                            RoutePath = postAttr.Path
+                            HttpMethod = "DELETE",
+                            RoutePath = deleteAttr.Path,
+                            RoutePathRegex = regex,
                         });
                     }
                     if (putAttr != null)
                     {
-                        _routeTable.Routes.Add(new ControllerDescriptor
+                        var regex = BuildRegex(putAttr.Path);
+                        _routeTable.Routes.Add(regex, new ControllerDescriptor
                         {
                             ControllerType = type,
                             ActionMethod = method,
-                            HttpMethod = "POST",
-                            RoutePath = postAttr.Path
+                            HttpMethod = "PUT",
+                            RoutePath = putAttr.Path,
+                            RoutePathRegex = regex,
                         });
                     }
                 }

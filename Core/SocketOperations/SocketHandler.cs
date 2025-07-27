@@ -5,17 +5,24 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using WebServer.Core.DI;
+using WebServer.Core.Http;
+using WebServer.Core.Middleware;
 using WebServer.Core.Utils;
 
 namespace WebServer.Core.SocketOperations
 {
     public class SocketHandler
     {
+        public MiddlewareBuilder.RequestDelegate requestDelegate;
+        public ServiceProvider serviceProvider;
         private readonly TcpListener _listener;
         private bool _isRunning;
-        public SocketHandler(int port)
+        public SocketHandler(int port, MiddlewareBuilder.RequestDelegate requestDelegate,ServiceProvider serviceProvider)
         {
             _listener = new TcpListener(IPAddress.Any, port);
+            this.requestDelegate = requestDelegate;
+            this.serviceProvider = serviceProvider;
         }
         public void Start()
         {
@@ -36,9 +43,11 @@ namespace WebServer.Core.SocketOperations
             try
             {
                 var stream = tcpClient.GetStream();
-                var request = new HttpRequestHandler();
-                var a = request.ReadHttpRequest(stream);
-                request.SendHttpResponse(stream);
+                var requestHandler = new HttpRequestHandler();
+                HttpRequest request = HttpRequest.Parse(requestHandler.ReadHttpRequest(stream));
+                HttpContext httpContext = new HttpContext(serviceProvider.CreateScope(),request);
+                requestDelegate(httpContext);
+                requestHandler.SendHttpResponse(stream, httpContext);
                 stream.Close();
                 tcpClient.Close();
             }

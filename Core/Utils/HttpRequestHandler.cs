@@ -4,14 +4,15 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using WebServer.Core.Http;
 
 namespace WebServer.Core.Utils
 {
     internal class HttpRequestHandler
     {
-        public void SendHttpResponse(NetworkStream stream)
+        public void SendHttpResponse(NetworkStream stream,HttpContext httpContent)
         {
-            string responseBody = "<html><body><h1>Hello from Custom Web Server</h1></body></html>";
+            string responseBody = "<html><body><h1>"+httpContent.Response.Response+"</h1></body></html>";
 
             string httpResponse =
                 "HTTP/1.1 200 OK\r\n" +
